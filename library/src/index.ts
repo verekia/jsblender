@@ -20,6 +20,8 @@ export { readMaterialShaderGraph } from './shader.ts'
 export type { ShaderGraph, ShaderNode, ShaderSocket, PrincipledBSDF } from './shader.ts'
 export { readCustomProperties, decodeIDPropertyAt, IDP_TYPE } from './idproperty.ts'
 export type { IDPropertyValue } from './idproperty.ts'
+export { evaluateMesh, evaluateAllMeshes, extractObjectModifiers, MOD_TYPE } from './modifier.ts'
+export type { Modifier, MirrorModifier, ArrayModifier, UnknownModifier } from './modifier.ts'
 export {
   ATTR_TYPE,
   ATTR_DOMAIN,
@@ -31,6 +33,19 @@ export {
 } from './attributes.ts'
 export type { MeshAttributeRaw, AttrTypeName, AttrTypeValue, AttrDomainName, AttrDomainValue } from './attributes.ts'
 export { parseFieldName, fieldSize } from './field.ts'
+export {
+  composeObjectMatrix,
+  mat3Invert,
+  mat3Transpose,
+  mat3TransformDirection,
+  mat4Identity,
+  mat4Invert,
+  mat4Multiply,
+  mat4ToMat3,
+  mat4TransformDirection,
+  mat4TransformPoint,
+} from './transform.ts'
+export type { Mat3, Mat4, Vec3, Vec4, ObjectTransformInputs } from './transform.ts'
 export type {
   BlendHeader,
   BlendBlock,

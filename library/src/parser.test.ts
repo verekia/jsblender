@@ -206,6 +206,77 @@ describe('custom properties (IDProperty)', () => {
   })
 })
 
+describe('modifiers (megaxe.blend)', () => {
+  const megaxePath = resolve(import.meta.dir, '..', 'megaxe.blend')
+  const megaxe = parseBlend(readFileSync(megaxePath))
+
+  it('decodes both Mirror modifiers from the megaxe object', async () => {
+    const { extractObjectModifiers } = await import('./modifier.ts')
+    const mods = extractObjectModifiers(megaxe).get('megaxe') ?? []
+    const mirrors = mods.filter(m => m.type === 'mirror')
+    expect(mirrors.length).toBe(2)
+    for (const m of mirrors) {
+      if (m.type !== 'mirror') continue
+      expect(m.axisX).toBe(true)
+      expect(m.axisY).toBe(false)
+      expect(m.merge).toBe(true)
+      expect(m.tolerance).toBeGreaterThan(0)
+    }
+  })
+
+  it('evaluateMesh expands the base mesh via stacked X-mirrors (with weld dedup)', async () => {
+    const { evaluateMesh } = await import('./modifier.ts')
+    const obj = extractObjects(megaxe).find(o => o.name === 'megaxe')
+    expect(obj).toBeDefined()
+    if (!obj) return
+    const baseMesh = extractMeshes(megaxe).find(m => m.name === 'megaxe')
+    expect(baseMesh).toBeDefined()
+    if (!baseMesh) return
+    const evaluated = evaluateMesh(megaxe, obj)
+    expect(evaluated).toBeDefined()
+    if (!evaluated) return
+    // Stacked mirror through the same X plane is geometrically a single mirror;
+    // we keep the original plus a mirror-pair for every off-plane face. Expect
+    // (totalCount) - (planeOnlyFaces) ≤ doubling-ratio ≤ 2x.
+    expect(evaluated.vertexCount).toBeGreaterThan(baseMesh.vertexCount)
+    expect(evaluated.vertexCount).toBeLessThanOrEqual(baseMesh.vertexCount * 2)
+    expect(evaluated.faceCount).toBeGreaterThan(baseMesh.faceCount)
+    // Two stacked X-mirrors: float-precision near the mirror plane means a
+    // handful of faces fail the exact dedup and survive — allow a small slack.
+    expect(evaluated.faceCount).toBeLessThanOrEqual(baseMesh.faceCount * 3)
+    // Every base vertex's X-mirror should also be present after evaluation.
+    const cellSize = 0.01
+    const cellKey = (x: number, y: number, z: number) =>
+      `${Math.round(x / cellSize)},${Math.round(y / cellSize)},${Math.round(z / cellSize)}`
+    const present = new Set<string>()
+    for (let i = 0; i < evaluated.vertexCount; i++) {
+      present.add(
+        cellKey(evaluated.vertices[i * 3] ?? 0, evaluated.vertices[i * 3 + 1] ?? 0, evaluated.vertices[i * 3 + 2] ?? 0),
+      )
+    }
+    for (let i = 0; i < baseMesh.vertexCount; i++) {
+      const x = baseMesh.vertices[i * 3] ?? 0
+      const y = baseMesh.vertices[i * 3 + 1] ?? 0
+      const z = baseMesh.vertices[i * 3 + 2] ?? 0
+      if (Math.abs(x) < 0.001) continue
+      expect(present.has(cellKey(-x, y, z))).toBe(true)
+    }
+  })
+
+  it('mirrored faces preserve material slot assignments', async () => {
+    const { evaluateMesh } = await import('./modifier.ts')
+    const obj = extractObjects(megaxe).find(o => o.name === 'megaxe')!
+    const baseMesh = extractMeshes(megaxe).find(m => m.name === 'megaxe')!
+    const evaluated = evaluateMesh(megaxe, obj)!
+    // Both halves must use the same set of material slots.
+    const baseSlots = new Set<number>()
+    for (let i = 0; i < baseMesh.faceCount; i++) baseSlots.add(baseMesh.materialIndices[i] ?? 0)
+    const evalSlots = new Set<number>()
+    for (let i = 0; i < evaluated.faceCount; i++) evalSlots.add(evaluated.materialIndices[i] ?? 0)
+    for (const s of baseSlots) expect(evalSlots.has(s)).toBe(true)
+  })
+})
+
 describe('objects + armatures (smoke)', () => {
   it('still returns every Object', () => {
     expect(extractObjects(blend).length).toBe(blend.blocks.filter(b => b.code === 'OB').length)

@@ -46,5 +46,5 @@
       "version": "19.0"
     }
   },
-  "ignorePatterns": ["node_modules", "dist", "out", ".next", "**/next-env.d.ts"]
+  "ignorePatterns": ["node_modules", "dist", "out", ".next", "**/next-env.d.ts", ".playwright-mcp"]
 }

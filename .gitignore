@@ -7,5 +7,6 @@ out/
 *.tsbuildinfo
 *.blend1
 next-env.d.ts
+.playwright-mcp
 
 library/README.md

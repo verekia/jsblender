@@ -17,6 +17,7 @@ import BlenderIcon from './BlenderIcon'
 import ColorSwatch from './ColorSwatch'
 import CustomProps from './CustomProps'
 import Section from './Section'
+import SvgRenderer from './SvgRenderer'
 
 import type { BlenderIconType } from './BlenderIcon'
 
@@ -89,6 +90,14 @@ const ApiView = ({ blend }: Props) => {
 
   return (
     <div className="flex flex-col gap-3">
+      <Section
+        title={<span className="text-emerald-200">SVG render</span>}
+        subtitle="example consumer of the jsblender API"
+        defaultOpen={true}
+      >
+        <SvgRenderer blend={blend} />
+      </Section>
+
       <Section
         title={
           <>

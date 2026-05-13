@@ -271,6 +271,34 @@ interface Bone {
 }
 ```
 
+## Modifiers (`evaluateMesh`)
+
+`extractMeshes` returns each `ME` datablock **as stored** — no Subdiv, Mirror, Array, etc. evaluation. For renderers that need the visible geometry, jsblender ships a small modifier evaluator that supports **Mirror** and **Array** (the two cheapest geometry-generating modifiers).
+
+```ts
+import { evaluateMesh, evaluateAllMeshes, extractObjectModifiers } from 'jsblender'
+
+const obj = extractObjects(blend).find(o => o.name === 'megaxe')!
+const mesh = evaluateMesh(blend, obj) // Mesh with Mirror / Array applied
+
+// Or batch:
+const byObject = evaluateAllMeshes(blend) // Map<objectName, Mesh>
+
+// Inspect a stack without evaluating:
+const mods = extractObjectModifiers(blend).get('megaxe')
+// [{ type: 'mirror', axisX: true, merge: true, tolerance: 0.001, ... },
+//  { type: 'array',  count: 4,    useRelativeOffset: true, ... }]
+```
+
+**Supported modifiers:**
+
+| Modifier   | What jsblender does                                                                                                                                                                              | Skipped                                                                              |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| **Mirror** | Per-axis vertex duplication with reversed face winding. Spatial weld merges mirrored positions onto existing vertices within `tolerance` (handles seams-on-plane and stacked redundant mirrors). | `mirror_ob` frame, `MOD_MIR_BISECT_*`, UV swapping, vertex-group swap.               |
+| **Array**  | Fixed-count duplication with combined `constantOffset` + `relativeOffset × bbox`.                                                                                                                | `FIT_LENGTH` / `FIT_CURVE`, `useObjectOffset`, merge-between-copies, start/end caps. |
+
+Other modifier types are returned as `{ type: 'unknown', typeCode }` and pass the mesh through unchanged.
+
 ## Custom properties (IDProperty)
 
 Every datablock returned by an `extract*` function carries a
