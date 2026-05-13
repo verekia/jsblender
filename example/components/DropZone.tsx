@@ -69,7 +69,7 @@ const DropZone = ({ onFileDrop, onDemoLoad, hasFile }: DropZoneProps) => {
               className="cursor-pointer rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-xs text-emerald-200 transition-colors hover:bg-emerald-400/15"
               onClick={onDemoLoad}
             >
-              Load simple.blend (demo)
+              Load full.blend (demo)
             </button>
           </div>
           <input

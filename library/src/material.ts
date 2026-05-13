@@ -1,4 +1,9 @@
+import { readCustomProperties } from './idproperty.ts'
+import { readMaterialShaderGraph } from './shader.ts'
+
+import type { IDPropertyValue } from './idproperty.ts'
 import type { BlendFileData } from './parser.ts'
+import type { ShaderGraph } from './shader.ts'
 
 export interface Material {
   name: string
@@ -8,6 +13,9 @@ export interface Material {
   roughness: number
   /** True when this material uses a node tree (modern Blender always does). */
   hasNodeTree: boolean
+  /** Parsed shader graph, when the material has a node tree. */
+  shader?: ShaderGraph
+  customProperties: Record<string, IDPropertyValue>
 }
 
 export const extractMaterials = (data: BlendFileData): Material[] => {
@@ -47,7 +55,17 @@ export const extractMaterials = (data: BlendFileData): Material[] => {
     const metallic = fMetallic ? reader.readFloat32(base + fMetallic.offset) : 0
     const roughness = fRoughness ? reader.readFloat32(base + fRoughness.offset) : 0
     const hasNodeTree = fNodeTree ? reader.readPointer(base + fNodeTree.offset) !== 0n : false
-    out.push({ name, diffuse, specular, metallic, roughness, hasNodeTree })
+    const shader = hasNodeTree ? readMaterialShaderGraph(data, base) : undefined
+    out.push({
+      name,
+      diffuse,
+      specular,
+      metallic,
+      roughness,
+      hasNodeTree,
+      shader,
+      customProperties: readCustomProperties(reader, base),
+    })
   }
   return out
 }

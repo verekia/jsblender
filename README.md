@@ -25,7 +25,17 @@ ESM-only. Node 18+, Bun, or any modern browser. The only runtime dependency is [
 
 ```ts
 import { readFileSync } from 'node:fs'
-import { parseBlend, extractMeshes, extractMaterials, extractObjects, extractArmatures } from 'jsblender'
+import {
+  parseBlend,
+  extractScenes,
+  extractMeshes,
+  extractMaterials,
+  extractObjects,
+  extractLights,
+  extractCameras,
+  extractImages,
+  extractArmatures,
+} from 'jsblender'
 
 const blend = parseBlend(readFileSync('scene.blend'))
 
@@ -34,6 +44,7 @@ console.log(blend.header)
 
 for (const mesh of extractMeshes(blend)) {
   console.log(mesh.name, mesh.vertexCount, mesh.faceCount, mesh.triangles.length / 3)
+  console.log('custom props:', mesh.customProperties)
 }
 ```
 
@@ -99,6 +110,8 @@ interface DeformVertex {
 }
 ```
 
+Every returned datablock also carries a `customProperties: Record<string, IDPropertyValue>` field — see [Custom properties](#custom-properties-idproperty) below.
+
 ### `extractMaterials(blend): Material[]`
 
 ```ts
@@ -108,11 +121,112 @@ interface Material {
   specular: [r, g, b]
   metallic: number
   roughness: number
-  hasNodeTree: boolean // true when a shader graph is attached
+  hasNodeTree: boolean
+  shader?: ShaderGraph // present when nodes are used
+  customProperties: Record<string, IDPropertyValue>
+}
+
+interface ShaderGraph {
+  nodes: ShaderNode[]
+  principled?: PrincipledBSDF // distilled, when the graph has one
+}
+
+interface PrincipledBSDF {
+  nodeName: string
+  baseColor: [r, g, b, a]
+  metallic: number
+  roughness: number
+  ior: number
+  alpha: number
+  emissionColor: [r, g, b, a]
+  emissionStrength: number
+  baseColorImage?: string // name of an image bound via a Tex Image node
+  normalImage?: string
+  roughnessImage?: string
+  metallicImage?: string
 }
 ```
 
-The actual shader graph is not parsed (Blender's node tree is huge and unstable across versions).
+The full node graph is exposed in `shader.nodes` — each node lists its `idname` (`ShaderNodeBsdfPrincipled`, `ShaderNodeTexImage`, …), its inputs with their default-value sockets, and any incoming links. Anything beyond Principled BSDF you can pull yourself from there.
+
+### `extractLights(blend): Light[]`
+
+```ts
+interface Light {
+  name: string
+  type: 'point' | 'sun' | 'spot' | 'area'
+  color: [r, g, b]
+  energy: number
+  radius: number
+  spotSize?: number // spot only
+  spotBlend?: number
+  sunAngle?: number // sun only
+  areaShape?: 'square' | 'rectangle' | 'disk' | 'ellipse'
+  areaSize?: [x] | [x, y]
+  useNodes: boolean
+  customProperties: Record<string, IDPropertyValue>
+}
+```
+
+### `extractCameras(blend): Camera[]`
+
+```ts
+interface Camera {
+  name: string
+  type: 'perspective' | 'orthographic' | 'panoramic'
+  lens: number // mm
+  sensorWidth: number
+  sensorHeight: number
+  sensorFit: 'auto' | 'horizontal' | 'vertical'
+  orthoScale: number
+  clipStart: number
+  clipEnd: number
+  shiftX: number
+  shiftY: number
+  customProperties: Record<string, IDPropertyValue>
+}
+```
+
+### `extractImages(blend): Image[]`
+
+```ts
+interface Image {
+  name: string
+  filepath: string // e.g. "//tex.png" (relative) or an absolute path
+  source: 'file' | 'sequence' | 'movie' | 'generated' | 'viewer' | 'tiled'
+  generatedWidth: number
+  generatedHeight: number
+  packed?: Uint8Array // raw bytes of the embedded file, when packed
+  customProperties: Record<string, IDPropertyValue>
+}
+```
+
+### `extractScenes(blend): Scene[]` and `extractCollections(blend): Collection[]`
+
+```ts
+interface Scene {
+  name: string
+  cameraObject?: string // active camera object name
+  frameStart: number
+  frameEnd: number
+  frameCurrent: number
+  fps: number // frs_sec / frs_sec_base
+  resolutionX: number
+  resolutionY: number
+  resolutionPercentage: number
+  rootCollection?: Collection
+  customProperties: Record<string, IDPropertyValue>
+}
+
+interface Collection {
+  name: string
+  objectNames: string[] // objects directly inside this collection
+  children: Collection[] // recursive
+  customProperties: Record<string, IDPropertyValue>
+}
+```
+
+`extractScenes` returns scenes with their full collection hierarchy. `extractCollections` returns every standalone `GR` datablock at the top level, also walkable.
 
 ### `extractObjects(blend): SceneObject[]`
 
@@ -128,6 +242,7 @@ interface SceneObject {
   worldMatrix: Float32Array // float[16], row-major
   dataName?: string // name of the linked ID datablock (e.g. the mesh)
   parentName?: string
+  customProperties: Record<string, IDPropertyValue>
 }
 
 import { OB_TYPE } from 'jsblender'
@@ -142,6 +257,7 @@ import { OB_TYPE } from 'jsblender'
 interface Armature {
   name: string
   bones: Bone[] // top-level (root) bones
+  customProperties: Record<string, IDPropertyValue>
 }
 
 interface Bone {
@@ -153,6 +269,40 @@ interface Bone {
   armatureMatrix: Float32Array // 4x4 rest pose, row-major
   children: Bone[]
 }
+```
+
+## Custom properties (IDProperty)
+
+Every datablock returned by an `extract*` function carries a
+`customProperties: Record<string, IDPropertyValue>` field — Blender's user-defined
+metadata, decoded into plain JS values.
+
+```ts
+type IDPropertyValue =
+  | string
+  | number
+  | boolean
+  | number[] // INT / FLOAT / DOUBLE array
+  | boolean[] // BOOLEAN array
+  | { [key: string]: IDPropertyValue } // GROUP (nested object)
+  | { __idRef: string | null } // ID reference (datablock by name)
+  | IDPropertyValue[] // IDPARRAY
+```
+
+`extract*` functions surface only the user's `ID.properties` group; Blender's
+internal `system_properties` are ignored.
+
+```ts
+const cube = extractMeshes(blend).find(m => m.name === 'Cube')
+cube?.customProperties
+// {
+//   myFloat: 1,
+//   myInteger: 1,
+//   myBoolean: true,
+//   myString: 'abc',
+//   myFloatArray: [1, 1, 1],
+//   myDataBlock: { __idRef: null },
+// }
 ```
 
 ## Low-level access

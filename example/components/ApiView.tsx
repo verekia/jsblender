@@ -1,9 +1,19 @@
 import { useMemo } from 'react'
 
-import { extractArmatures, extractMaterials, extractMeshes, extractObjects, OB_TYPE } from 'jsblender'
-import type { Bone } from 'jsblender'
-import type { BlendFileData } from 'jsblender'
+import {
+  extractArmatures,
+  extractCameras,
+  extractImages,
+  extractLights,
+  extractMaterials,
+  extractMeshes,
+  extractObjects,
+  extractScenes,
+  OB_TYPE,
+} from 'jsblender'
+import type { Bone, BlendFileData, Collection, IDPropertyValue } from 'jsblender'
 
+import CustomProps from './CustomProps'
 import Section from './Section'
 
 const OB_TYPE_NAMES: Record<number, string> = Object.fromEntries(
@@ -24,6 +34,8 @@ const previewArray = (arr: Float32Array | Uint32Array | undefined, count: number
   return parts.join(', ') + (arr.length > take ? ', …' : '')
 }
 
+const hasProps = (props: Record<string, IDPropertyValue>): boolean => Object.keys(props).length > 0
+
 const renderBoneTree = (bones: Bone[], depth = 0): React.ReactNode =>
   bones.map(b => (
     <div key={`${depth}-${b.name}`} className="font-mono">
@@ -38,6 +50,16 @@ const renderBoneTree = (bones: Bone[], depth = 0): React.ReactNode =>
     </div>
   ))
 
+const renderCollectionTree = (c: Collection, depth = 0): React.ReactNode => (
+  <div key={`${depth}-${c.name}`} className="font-mono">
+    <div style={{ paddingLeft: depth * 14 }} className="text-neutral-200">
+      📁 {c.name}
+      {c.objectNames.length > 0 && <span className="ml-2 text-neutral-500">[{c.objectNames.join(', ')}]</span>}
+    </div>
+    {c.children.map(child => renderCollectionTree(child, depth + 1))}
+  </div>
+)
+
 interface Props {
   blend: BlendFileData
 }
@@ -47,12 +69,56 @@ const ApiView = ({ blend }: Props) => {
   const materials = useMemo(() => extractMaterials(blend), [blend])
   const objects = useMemo(() => extractObjects(blend), [blend])
   const armatures = useMemo(() => extractArmatures(blend), [blend])
+  const lights = useMemo(() => extractLights(blend), [blend])
+  const cameras = useMemo(() => extractCameras(blend), [blend])
+  const images = useMemo(() => extractImages(blend), [blend])
+  const scenes = useMemo(() => extractScenes(blend), [blend])
 
   return (
     <div className="flex flex-col gap-3">
+      <Section title="Scenes" subtitle={`${scenes.length} found`}>
+        {scenes.length === 0 ? (
+          <div className="text-neutral-500">No scenes.</div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {scenes.map(s => (
+              <div key={s.name} className="rounded border border-white/5 bg-black/20 p-3">
+                <div className="mb-2 font-semibold text-neutral-100">{s.name}</div>
+                <dl className="grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 font-mono text-[11px]">
+                  <dt className="text-neutral-500">frames</dt>
+                  <dd className="text-neutral-300">
+                    {s.frameStart}–{s.frameEnd} (current {s.frameCurrent})
+                  </dd>
+                  <dt className="text-neutral-500">fps</dt>
+                  <dd className="text-neutral-300">{fmtFloat(s.fps, 2)}</dd>
+                  <dt className="text-neutral-500">resolution</dt>
+                  <dd className="text-neutral-300">
+                    {s.resolutionX} × {s.resolutionY} ({s.resolutionPercentage}%)
+                  </dd>
+                  <dt className="text-neutral-500">active camera</dt>
+                  <dd className="text-neutral-300">{s.cameraObject ?? '—'}</dd>
+                </dl>
+                {s.rootCollection && (
+                  <div className="mt-3">
+                    <div className="mb-1 text-[11px] text-neutral-500">collections</div>
+                    <div className="text-[11px]">{renderCollectionTree(s.rootCollection)}</div>
+                  </div>
+                )}
+                {hasProps(s.customProperties) && (
+                  <div className="mt-3">
+                    <div className="mb-1 text-[11px] text-neutral-500">custom properties</div>
+                    <CustomProps props={s.customProperties} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
       <Section title="Meshes" subtitle={`${meshes.length} found`}>
         {meshes.length === 0 ? (
-          <div className="text-neutral-500">No meshes in this file.</div>
+          <div className="text-neutral-500">No meshes.</div>
         ) : (
           <div className="flex flex-col gap-3">
             {meshes.map(m => (
@@ -81,14 +147,13 @@ const ApiView = ({ blend }: Props) => {
                   <dd className="text-neutral-300">{m.vertexGroupNames.join(', ') || '—'}</dd>
                   <dt className="text-neutral-500">first vertices</dt>
                   <dd className="text-neutral-300">{previewArray(m.vertices, 9)}</dd>
-                  <dt className="text-neutral-500">first normals</dt>
-                  <dd className="text-neutral-300">{previewArray(m.vertexNormals, 9)}</dd>
                   <dt className="text-neutral-500">first triangles</dt>
                   <dd className="text-neutral-300">{previewArray(m.triangles, 12)}</dd>
                 </dl>
-                {m.dvert && m.dvert.some(d => d.totalWeight > 0) && (
-                  <div className="mt-2 text-[11px] text-neutral-400">
-                    weights: {m.dvert.filter(d => d.totalWeight > 0).length} of {m.vertexCount} vertices weighted
+                {hasProps(m.customProperties) && (
+                  <div className="mt-3">
+                    <div className="mb-1 text-[11px] text-neutral-500">custom properties</div>
+                    <CustomProps props={m.customProperties} />
                   </div>
                 )}
               </div>
@@ -101,33 +166,195 @@ const ApiView = ({ blend }: Props) => {
         {materials.length === 0 ? (
           <div className="text-neutral-500">No materials.</div>
         ) : (
+          <div className="flex flex-col gap-3">
+            {materials.map(m => (
+              <div key={m.name} className="rounded border border-white/5 bg-black/20 p-3">
+                <div className="mb-2 flex items-center gap-2 font-semibold text-neutral-100">
+                  <span
+                    className="inline-block size-4 rounded border border-white/10"
+                    style={{
+                      background: `rgba(${m.diffuse.map((c, i) => (i < 3 ? Math.round(c * 255) : c)).join(',')})`,
+                    }}
+                  />
+                  {m.name}
+                </div>
+                <dl className="grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 font-mono text-[11px]">
+                  <dt className="text-neutral-500">diffuse rgba</dt>
+                  <dd className="text-neutral-300">{m.diffuse.map(c => fmtFloat(c, 2)).join(', ')}</dd>
+                  <dt className="text-neutral-500">specular rgb</dt>
+                  <dd className="text-neutral-300">{m.specular.map(c => fmtFloat(c, 2)).join(', ')}</dd>
+                  <dt className="text-neutral-500">metallic</dt>
+                  <dd className="text-neutral-300">{fmtFloat(m.metallic, 2)}</dd>
+                  <dt className="text-neutral-500">roughness</dt>
+                  <dd className="text-neutral-300">{fmtFloat(m.roughness, 2)}</dd>
+                  <dt className="text-neutral-500">node tree</dt>
+                  <dd className="text-neutral-300">{m.hasNodeTree ? `${m.shader?.nodes.length ?? 0} nodes` : '—'}</dd>
+                </dl>
+                {m.shader?.principled && (
+                  <div className="mt-3 rounded border border-white/5 bg-black/30 p-2">
+                    <div className="mb-1 text-[11px] text-neutral-500">Principled BSDF</div>
+                    <dl className="grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 font-mono text-[11px]">
+                      <dt className="text-neutral-500">base color</dt>
+                      <dd className="text-neutral-300">
+                        {m.shader.principled.baseColor.map(c => fmtFloat(c, 2)).join(', ')}
+                        {m.shader.principled.baseColorImage && (
+                          <span className="ml-2 text-emerald-300/80">→ {m.shader.principled.baseColorImage}</span>
+                        )}
+                      </dd>
+                      <dt className="text-neutral-500">metallic</dt>
+                      <dd className="text-neutral-300">{fmtFloat(m.shader.principled.metallic, 2)}</dd>
+                      <dt className="text-neutral-500">roughness</dt>
+                      <dd className="text-neutral-300">{fmtFloat(m.shader.principled.roughness, 2)}</dd>
+                      <dt className="text-neutral-500">IOR</dt>
+                      <dd className="text-neutral-300">{fmtFloat(m.shader.principled.ior, 3)}</dd>
+                      <dt className="text-neutral-500">alpha</dt>
+                      <dd className="text-neutral-300">{fmtFloat(m.shader.principled.alpha, 2)}</dd>
+                      <dt className="text-neutral-500">emission</dt>
+                      <dd className="text-neutral-300">
+                        {m.shader.principled.emissionColor.map(c => fmtFloat(c, 2)).join(', ')} ×{' '}
+                        {fmtFloat(m.shader.principled.emissionStrength, 2)}
+                      </dd>
+                    </dl>
+                  </div>
+                )}
+                {hasProps(m.customProperties) && (
+                  <div className="mt-3">
+                    <div className="mb-1 text-[11px] text-neutral-500">custom properties</div>
+                    <CustomProps props={m.customProperties} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Lights" subtitle={`${lights.length} found`}>
+        {lights.length === 0 ? (
+          <div className="text-neutral-500">No lights.</div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {lights.map(l => (
+              <div key={l.name} className="rounded border border-white/5 bg-black/20 p-3">
+                <div className="mb-2 flex items-center gap-2 font-semibold text-neutral-100">
+                  <span
+                    className="inline-block size-4 rounded border border-white/10"
+                    style={{ background: `rgb(${l.color.map(c => Math.round(Math.min(1, c) * 255)).join(',')})` }}
+                  />
+                  {l.name} <span className="text-[11px] font-normal text-neutral-500">({l.type})</span>
+                </div>
+                <dl className="grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 font-mono text-[11px]">
+                  <dt className="text-neutral-500">color</dt>
+                  <dd className="text-neutral-300">{l.color.map(c => fmtFloat(c, 2)).join(', ')}</dd>
+                  <dt className="text-neutral-500">energy</dt>
+                  <dd className="text-neutral-300">{fmtFloat(l.energy, 2)}</dd>
+                  <dt className="text-neutral-500">radius</dt>
+                  <dd className="text-neutral-300">{fmtFloat(l.radius, 3)}</dd>
+                  {l.spotSize !== undefined && (
+                    <>
+                      <dt className="text-neutral-500">spot size</dt>
+                      <dd className="text-neutral-300">{fmtFloat(l.spotSize, 3)} rad</dd>
+                    </>
+                  )}
+                  {l.spotBlend !== undefined && (
+                    <>
+                      <dt className="text-neutral-500">spot blend</dt>
+                      <dd className="text-neutral-300">{fmtFloat(l.spotBlend, 2)}</dd>
+                    </>
+                  )}
+                  {l.sunAngle !== undefined && (
+                    <>
+                      <dt className="text-neutral-500">sun angle</dt>
+                      <dd className="text-neutral-300">{fmtFloat(l.sunAngle, 4)} rad</dd>
+                    </>
+                  )}
+                  {l.areaShape && (
+                    <>
+                      <dt className="text-neutral-500">area</dt>
+                      <dd className="text-neutral-300">
+                        {l.areaShape}
+                        {l.areaSize && ` (${l.areaSize.map(s => fmtFloat(s, 2)).join(' × ')})`}
+                      </dd>
+                    </>
+                  )}
+                  <dt className="text-neutral-500">uses nodes</dt>
+                  <dd className="text-neutral-300">{l.useNodes ? 'yes' : 'no'}</dd>
+                </dl>
+                {hasProps(l.customProperties) && (
+                  <div className="mt-3">
+                    <div className="mb-1 text-[11px] text-neutral-500">custom properties</div>
+                    <CustomProps props={l.customProperties} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Cameras" subtitle={`${cameras.length} found`}>
+        {cameras.length === 0 ? (
+          <div className="text-neutral-500">No cameras.</div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {cameras.map(c => (
+              <div key={c.name} className="rounded border border-white/5 bg-black/20 p-3">
+                <div className="mb-2 font-semibold text-neutral-100">
+                  {c.name} <span className="text-[11px] font-normal text-neutral-500">({c.type})</span>
+                </div>
+                <dl className="grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 font-mono text-[11px]">
+                  <dt className="text-neutral-500">lens</dt>
+                  <dd className="text-neutral-300">{fmtFloat(c.lens, 1)} mm</dd>
+                  <dt className="text-neutral-500">sensor</dt>
+                  <dd className="text-neutral-300">
+                    {fmtFloat(c.sensorWidth, 1)} × {fmtFloat(c.sensorHeight, 1)} mm ({c.sensorFit})
+                  </dd>
+                  <dt className="text-neutral-500">ortho scale</dt>
+                  <dd className="text-neutral-300">{fmtFloat(c.orthoScale, 2)}</dd>
+                  <dt className="text-neutral-500">clip</dt>
+                  <dd className="text-neutral-300">
+                    {fmtFloat(c.clipStart, 3)} – {fmtFloat(c.clipEnd, 1)}
+                  </dd>
+                  <dt className="text-neutral-500">shift</dt>
+                  <dd className="text-neutral-300">
+                    {fmtFloat(c.shiftX, 3)}, {fmtFloat(c.shiftY, 3)}
+                  </dd>
+                </dl>
+                {hasProps(c.customProperties) && (
+                  <div className="mt-3">
+                    <div className="mb-1 text-[11px] text-neutral-500">custom properties</div>
+                    <CustomProps props={c.customProperties} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Images" subtitle={`${images.length} found`}>
+        {images.length === 0 ? (
+          <div className="text-neutral-500">No images.</div>
+        ) : (
           <div className="overflow-hidden rounded border border-white/5">
             <table className="w-full font-mono text-[11px]">
               <thead className="bg-white/[0.04] text-neutral-400">
                 <tr>
                   <th className="px-2 py-1 text-left font-semibold">name</th>
-                  <th className="px-2 py-1 text-left font-semibold">diffuse rgba</th>
-                  <th className="px-2 py-1 text-right font-semibold">metallic</th>
-                  <th className="px-2 py-1 text-right font-semibold">roughness</th>
-                  <th className="px-2 py-1 text-center font-semibold">nodes</th>
+                  <th className="px-2 py-1 text-left font-semibold">source</th>
+                  <th className="px-2 py-1 text-left font-semibold">filepath</th>
+                  <th className="px-2 py-1 text-right font-semibold">packed</th>
                 </tr>
               </thead>
               <tbody>
-                {materials.map(m => (
-                  <tr key={m.name} className="border-t border-white/[0.03]">
-                    <td className="px-2 py-1 text-neutral-200">{m.name}</td>
-                    <td className="px-2 py-1 text-neutral-300">
-                      <span
-                        className="mr-2 inline-block size-3 rounded border border-white/10 align-middle"
-                        style={{
-                          background: `rgba(${m.diffuse.map((c, i) => (i < 3 ? Math.round(c * 255) : c)).join(',')})`,
-                        }}
-                      />
-                      {m.diffuse.map(c => fmtFloat(c, 2)).join(', ')}
+                {images.map(img => (
+                  <tr key={img.name} className="border-t border-white/[0.03]">
+                    <td className="px-2 py-1 text-neutral-200">{img.name}</td>
+                    <td className="px-2 py-1 text-neutral-400">{img.source}</td>
+                    <td className="px-2 py-1 break-all text-neutral-300">{img.filepath || '—'}</td>
+                    <td className="px-2 py-1 text-right text-neutral-300">
+                      {img.packed ? `${img.packed.byteLength} B` : '—'}
                     </td>
-                    <td className="px-2 py-1 text-right text-neutral-300">{fmtFloat(m.metallic, 2)}</td>
-                    <td className="px-2 py-1 text-right text-neutral-300">{fmtFloat(m.roughness, 2)}</td>
-                    <td className="px-2 py-1 text-center text-neutral-300">{m.hasNodeTree ? '●' : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -140,29 +367,33 @@ const ApiView = ({ blend }: Props) => {
         {objects.length === 0 ? (
           <div className="text-neutral-500">No objects.</div>
         ) : (
-          <div className="overflow-hidden rounded border border-white/5">
-            <table className="w-full font-mono text-[11px]">
-              <thead className="bg-white/[0.04] text-neutral-400">
-                <tr>
-                  <th className="px-2 py-1 text-left font-semibold">name</th>
-                  <th className="px-2 py-1 text-left font-semibold">type</th>
-                  <th className="px-2 py-1 text-left font-semibold">location</th>
-                  <th className="px-2 py-1 text-left font-semibold">scale</th>
-                  <th className="px-2 py-1 text-left font-semibold">data</th>
-                </tr>
-              </thead>
-              <tbody>
-                {objects.map(o => (
-                  <tr key={o.name} className="border-t border-white/[0.03]">
-                    <td className="px-2 py-1 text-neutral-200">{o.name}</td>
-                    <td className="px-2 py-1 text-neutral-400">{OB_TYPE_NAMES[o.type] ?? o.type}</td>
-                    <td className="px-2 py-1 text-neutral-300">{o.location.map(c => fmtFloat(c, 2)).join(', ')}</td>
-                    <td className="px-2 py-1 text-neutral-300">{o.scale.map(c => fmtFloat(c, 2)).join(', ')}</td>
-                    <td className="px-2 py-1 text-neutral-400">{o.dataName ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex flex-col gap-3">
+            {objects.map(o => (
+              <div key={o.name} className="rounded border border-white/5 bg-black/20 p-3">
+                <div className="mb-2 font-semibold text-neutral-100">
+                  {o.name}{' '}
+                  <span className="text-[11px] font-normal text-neutral-500">({OB_TYPE_NAMES[o.type] ?? o.type})</span>
+                </div>
+                <dl className="grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 font-mono text-[11px]">
+                  <dt className="text-neutral-500">location</dt>
+                  <dd className="text-neutral-300">{o.location.map(c => fmtFloat(c, 2)).join(', ')}</dd>
+                  <dt className="text-neutral-500">rotation</dt>
+                  <dd className="text-neutral-300">{o.rotation.map(c => fmtFloat(c, 2)).join(', ')}</dd>
+                  <dt className="text-neutral-500">scale</dt>
+                  <dd className="text-neutral-300">{o.scale.map(c => fmtFloat(c, 2)).join(', ')}</dd>
+                  <dt className="text-neutral-500">data</dt>
+                  <dd className="text-neutral-300">{o.dataName ?? '—'}</dd>
+                  <dt className="text-neutral-500">parent</dt>
+                  <dd className="text-neutral-300">{o.parentName ?? '—'}</dd>
+                </dl>
+                {hasProps(o.customProperties) && (
+                  <div className="mt-3">
+                    <div className="mb-1 text-[11px] text-neutral-500">custom properties</div>
+                    <CustomProps props={o.customProperties} />
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </Section>
@@ -176,6 +407,12 @@ const ApiView = ({ blend }: Props) => {
               <div key={a.name} className="rounded border border-white/5 bg-black/20 p-3">
                 <div className="mb-2 font-semibold text-neutral-100">{a.name}</div>
                 <div className="text-[11px]">{renderBoneTree(a.bones)}</div>
+                {hasProps(a.customProperties) && (
+                  <div className="mt-3">
+                    <div className="mb-1 text-[11px] text-neutral-500">custom properties</div>
+                    <CustomProps props={a.customProperties} />
+                  </div>
+                )}
               </div>
             ))}
           </div>

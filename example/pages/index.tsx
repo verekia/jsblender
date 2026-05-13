@@ -54,10 +54,10 @@ const IndexPage = () => {
   const onDemoLoad = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('simple.blend')
+      const res = await fetch('full.blend')
       if (!res.ok) throw new Error(`Failed to fetch demo: ${res.status}`)
       const buf = new Uint8Array(await res.arrayBuffer())
-      loadBuffer('simple.blend', buf.byteLength, buf)
+      loadBuffer('full.blend', buf.byteLength, buf)
     } catch (err) {
       setError((err as Error).message)
     } finally {

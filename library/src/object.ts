@@ -1,3 +1,6 @@
+import { readCustomProperties } from './idproperty.ts'
+
+import type { IDPropertyValue } from './idproperty.ts'
 import type { BlendFileData } from './parser.ts'
 
 export interface SceneObject {
@@ -14,6 +17,7 @@ export interface SceneObject {
   dataName?: string
   /** Parent object name, when set. */
   parentName?: string
+  customProperties: Record<string, IDPropertyValue>
 }
 
 export const OB_TYPE = {
@@ -81,7 +85,17 @@ export const extractObjects = (data: BlendFileData): SceneObject[] => {
       parentName = raw.length >= 2 ? raw.slice(2) : raw
     }
 
-    out.push({ name, type, location, rotation, scale, worldMatrix, dataName, parentName })
+    out.push({
+      name,
+      type,
+      location,
+      rotation,
+      scale,
+      worldMatrix,
+      dataName,
+      parentName,
+      customProperties: readCustomProperties(reader, base),
+    })
   }
   return out
 }

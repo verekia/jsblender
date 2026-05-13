@@ -8,6 +8,18 @@ export { extractObjects, OB_TYPE } from './object.ts'
 export type { SceneObject } from './object.ts'
 export { extractArmatures } from './armature.ts'
 export type { Bone, Armature } from './armature.ts'
+export { extractLights, LIGHT_TYPE, AREA_SHAPE } from './light.ts'
+export type { Light, LightTypeName, AreaShapeName } from './light.ts'
+export { extractCameras, CAMERA_TYPE, SENSOR_FIT } from './camera.ts'
+export type { Camera, CameraTypeName, SensorFitName } from './camera.ts'
+export { extractImages, IMAGE_SOURCE } from './image.ts'
+export type { Image, ImageSourceName } from './image.ts'
+export { extractScenes, extractCollections } from './scene.ts'
+export type { Scene, Collection } from './scene.ts'
+export { readMaterialShaderGraph } from './shader.ts'
+export type { ShaderGraph, ShaderNode, ShaderSocket, PrincipledBSDF } from './shader.ts'
+export { readCustomProperties, decodeIDPropertyAt, IDP_TYPE } from './idproperty.ts'
+export type { IDPropertyValue } from './idproperty.ts'
 export {
   ATTR_TYPE,
   ATTR_DOMAIN,
