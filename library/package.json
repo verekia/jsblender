@@ -1,6 +1,6 @@
 {
   "name": "jsblender",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Modern, typesafe .blend file parser for Blender 5 and up.",
   "license": "MIT",
   "files": [
