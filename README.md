@@ -2,7 +2,7 @@
 
 Modern, typesafe `.blend` file parser for Blender 5 and up. Works in Node, Bun, and the browser.
 
-⚠️ Heavily vibe-coded against a single test file. The code is barely reviewed, will probably crash on edge-case `.blend` files, and the surface area exposed only covers what the author needed. Not recommended for anything important.
+⚠️ Heavily vibe-coded. The code is not reviewed, will probably crash on edge-case `.blend` files, and the surface area exposed only covers what the author needed. Not recommended for anything important.
 
 ## Status
 

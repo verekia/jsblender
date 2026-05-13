@@ -13,12 +13,24 @@ import {
 } from 'jsblender'
 import type { Bone, BlendFileData, Collection, IDPropertyValue } from 'jsblender'
 
+import BlenderIcon from './BlenderIcon'
+import ColorSwatch from './ColorSwatch'
 import CustomProps from './CustomProps'
 import Section from './Section'
+
+import type { BlenderIconType } from './BlenderIcon'
 
 const OB_TYPE_NAMES: Record<number, string> = Object.fromEntries(
   Object.entries(OB_TYPE).map(([k, v]) => [v, k.toLowerCase()]),
 )
+
+const OB_TYPE_ICONS: Record<number, BlenderIconType> = {
+  [OB_TYPE.MESH]: 'mesh',
+  [OB_TYPE.LAMP]: 'light',
+  [OB_TYPE.CAMERA]: 'camera',
+  [OB_TYPE.ARMATURE]: 'armature',
+}
+const iconForObject = (type: number): BlenderIconType => OB_TYPE_ICONS[type] ?? 'object'
 
 const fmtFloat = (n: number, places = 3): string => (Number.isFinite(n) ? n.toFixed(places) : 'NaN')
 
@@ -52,9 +64,10 @@ const renderBoneTree = (bones: Bone[], depth = 0): React.ReactNode =>
 
 const renderCollectionTree = (c: Collection, depth = 0): React.ReactNode => (
   <div key={`${depth}-${c.name}`} className="font-mono">
-    <div style={{ paddingLeft: depth * 14 }} className="text-neutral-200">
-      📁 {c.name}
-      {c.objectNames.length > 0 && <span className="ml-2 text-neutral-500">[{c.objectNames.join(', ')}]</span>}
+    <div style={{ paddingLeft: depth * 14 }} className="flex items-center gap-2 text-neutral-200">
+      <BlenderIcon type="collection" size={14} />
+      <span>{c.name}</span>
+      {c.objectNames.length > 0 && <span className="text-neutral-500">[{c.objectNames.join(', ')}]</span>}
     </div>
     {c.children.map(child => renderCollectionTree(child, depth + 1))}
   </div>
@@ -76,14 +89,24 @@ const ApiView = ({ blend }: Props) => {
 
   return (
     <div className="flex flex-col gap-3">
-      <Section title="Scenes" subtitle={`${scenes.length} found`}>
+      <Section
+        title={
+          <>
+            <BlenderIcon type="scene" /> Scenes
+          </>
+        }
+        subtitle={`${scenes.length} found`}
+      >
         {scenes.length === 0 ? (
           <div className="text-neutral-500">No scenes.</div>
         ) : (
           <div className="flex flex-col gap-3">
             {scenes.map(s => (
               <div key={s.name} className="rounded border border-white/5 bg-black/20 p-3">
-                <div className="mb-2 font-semibold text-neutral-100">{s.name}</div>
+                <div className="mb-2 flex items-center gap-2 font-semibold text-neutral-100">
+                  <BlenderIcon type="scene" />
+                  {s.name}
+                </div>
                 <dl className="grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 font-mono text-[11px]">
                   <dt className="text-neutral-500">frames</dt>
                   <dd className="text-neutral-300">
@@ -116,14 +139,24 @@ const ApiView = ({ blend }: Props) => {
         )}
       </Section>
 
-      <Section title="Meshes" subtitle={`${meshes.length} found`}>
+      <Section
+        title={
+          <>
+            <BlenderIcon type="mesh" /> Meshes
+          </>
+        }
+        subtitle={`${meshes.length} found`}
+      >
         {meshes.length === 0 ? (
           <div className="text-neutral-500">No meshes.</div>
         ) : (
           <div className="flex flex-col gap-3">
             {meshes.map(m => (
               <div key={m.name} className="rounded border border-white/5 bg-black/20 p-3">
-                <div className="mb-2 font-semibold text-neutral-100">{m.name}</div>
+                <div className="mb-2 flex items-center gap-2 font-semibold text-neutral-100">
+                  <BlenderIcon type="mesh" />
+                  {m.name}
+                </div>
                 <dl className="grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 font-mono text-[11px]">
                   <dt className="text-neutral-500">vertices</dt>
                   <dd className="text-neutral-300">{m.vertexCount}</dd>
@@ -162,7 +195,14 @@ const ApiView = ({ blend }: Props) => {
         )}
       </Section>
 
-      <Section title="Materials" subtitle={`${materials.length} found`}>
+      <Section
+        title={
+          <>
+            <BlenderIcon type="material" /> Materials
+          </>
+        }
+        subtitle={`${materials.length} found`}
+      >
         {materials.length === 0 ? (
           <div className="text-neutral-500">No materials.</div>
         ) : (
@@ -170,19 +210,19 @@ const ApiView = ({ blend }: Props) => {
             {materials.map(m => (
               <div key={m.name} className="rounded border border-white/5 bg-black/20 p-3">
                 <div className="mb-2 flex items-center gap-2 font-semibold text-neutral-100">
-                  <span
-                    className="inline-block size-4 rounded border border-white/10"
-                    style={{
-                      background: `rgba(${m.diffuse.map((c, i) => (i < 3 ? Math.round(c * 255) : c)).join(',')})`,
-                    }}
-                  />
+                  <BlenderIcon type="material" />
+                  <ColorSwatch color={m.diffuse} swatchOnly />
                   {m.name}
                 </div>
                 <dl className="grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 font-mono text-[11px]">
                   <dt className="text-neutral-500">diffuse rgba</dt>
-                  <dd className="text-neutral-300">{m.diffuse.map(c => fmtFloat(c, 2)).join(', ')}</dd>
+                  <dd className="text-neutral-300">
+                    <ColorSwatch color={m.diffuse} />
+                  </dd>
                   <dt className="text-neutral-500">specular rgb</dt>
-                  <dd className="text-neutral-300">{m.specular.map(c => fmtFloat(c, 2)).join(', ')}</dd>
+                  <dd className="text-neutral-300">
+                    <ColorSwatch color={m.specular} />
+                  </dd>
                   <dt className="text-neutral-500">metallic</dt>
                   <dd className="text-neutral-300">{fmtFloat(m.metallic, 2)}</dd>
                   <dt className="text-neutral-500">roughness</dt>
@@ -196,7 +236,7 @@ const ApiView = ({ blend }: Props) => {
                     <dl className="grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 font-mono text-[11px]">
                       <dt className="text-neutral-500">base color</dt>
                       <dd className="text-neutral-300">
-                        {m.shader.principled.baseColor.map(c => fmtFloat(c, 2)).join(', ')}
+                        <ColorSwatch color={m.shader.principled.baseColor} />
                         {m.shader.principled.baseColorImage && (
                           <span className="ml-2 text-emerald-300/80">→ {m.shader.principled.baseColorImage}</span>
                         )}
@@ -210,9 +250,9 @@ const ApiView = ({ blend }: Props) => {
                       <dt className="text-neutral-500">alpha</dt>
                       <dd className="text-neutral-300">{fmtFloat(m.shader.principled.alpha, 2)}</dd>
                       <dt className="text-neutral-500">emission</dt>
-                      <dd className="text-neutral-300">
-                        {m.shader.principled.emissionColor.map(c => fmtFloat(c, 2)).join(', ')} ×{' '}
-                        {fmtFloat(m.shader.principled.emissionStrength, 2)}
+                      <dd className="flex items-center gap-2 text-neutral-300">
+                        <ColorSwatch color={m.shader.principled.emissionColor} />
+                        <span>× {fmtFloat(m.shader.principled.emissionStrength, 2)}</span>
                       </dd>
                     </dl>
                   </div>
@@ -229,7 +269,14 @@ const ApiView = ({ blend }: Props) => {
         )}
       </Section>
 
-      <Section title="Lights" subtitle={`${lights.length} found`}>
+      <Section
+        title={
+          <>
+            <BlenderIcon type="light" /> Lights
+          </>
+        }
+        subtitle={`${lights.length} found`}
+      >
         {lights.length === 0 ? (
           <div className="text-neutral-500">No lights.</div>
         ) : (
@@ -237,15 +284,15 @@ const ApiView = ({ blend }: Props) => {
             {lights.map(l => (
               <div key={l.name} className="rounded border border-white/5 bg-black/20 p-3">
                 <div className="mb-2 flex items-center gap-2 font-semibold text-neutral-100">
-                  <span
-                    className="inline-block size-4 rounded border border-white/10"
-                    style={{ background: `rgb(${l.color.map(c => Math.round(Math.min(1, c) * 255)).join(',')})` }}
-                  />
+                  <BlenderIcon type="light" />
+                  <ColorSwatch color={l.color} swatchOnly />
                   {l.name} <span className="text-[11px] font-normal text-neutral-500">({l.type})</span>
                 </div>
                 <dl className="grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 font-mono text-[11px]">
                   <dt className="text-neutral-500">color</dt>
-                  <dd className="text-neutral-300">{l.color.map(c => fmtFloat(c, 2)).join(', ')}</dd>
+                  <dd className="text-neutral-300">
+                    <ColorSwatch color={l.color} />
+                  </dd>
                   <dt className="text-neutral-500">energy</dt>
                   <dd className="text-neutral-300">{fmtFloat(l.energy, 2)}</dd>
                   <dt className="text-neutral-500">radius</dt>
@@ -292,14 +339,22 @@ const ApiView = ({ blend }: Props) => {
         )}
       </Section>
 
-      <Section title="Cameras" subtitle={`${cameras.length} found`}>
+      <Section
+        title={
+          <>
+            <BlenderIcon type="camera" /> Cameras
+          </>
+        }
+        subtitle={`${cameras.length} found`}
+      >
         {cameras.length === 0 ? (
           <div className="text-neutral-500">No cameras.</div>
         ) : (
           <div className="flex flex-col gap-3">
             {cameras.map(c => (
               <div key={c.name} className="rounded border border-white/5 bg-black/20 p-3">
-                <div className="mb-2 font-semibold text-neutral-100">
+                <div className="mb-2 flex items-center gap-2 font-semibold text-neutral-100">
+                  <BlenderIcon type="camera" />
                   {c.name} <span className="text-[11px] font-normal text-neutral-500">({c.type})</span>
                 </div>
                 <dl className="grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 font-mono text-[11px]">
@@ -332,7 +387,14 @@ const ApiView = ({ blend }: Props) => {
         )}
       </Section>
 
-      <Section title="Images" subtitle={`${images.length} found`}>
+      <Section
+        title={
+          <>
+            <BlenderIcon type="image" /> Images
+          </>
+        }
+        subtitle={`${images.length} found`}
+      >
         {images.length === 0 ? (
           <div className="text-neutral-500">No images.</div>
         ) : (
@@ -349,7 +411,12 @@ const ApiView = ({ blend }: Props) => {
               <tbody>
                 {images.map(img => (
                   <tr key={img.name} className="border-t border-white/[0.03]">
-                    <td className="px-2 py-1 text-neutral-200">{img.name}</td>
+                    <td className="px-2 py-1 text-neutral-200">
+                      <span className="inline-flex items-center gap-2">
+                        <BlenderIcon type="image" size={14} />
+                        {img.name}
+                      </span>
+                    </td>
                     <td className="px-2 py-1 text-neutral-400">{img.source}</td>
                     <td className="px-2 py-1 break-all text-neutral-300">{img.filepath || '—'}</td>
                     <td className="px-2 py-1 text-right text-neutral-300">
@@ -363,14 +430,23 @@ const ApiView = ({ blend }: Props) => {
         )}
       </Section>
 
-      <Section title="Objects" subtitle={`${objects.length} found`}>
+      <Section
+        title={
+          <>
+            <BlenderIcon type="object" /> Objects
+          </>
+        }
+        subtitle={`${objects.length} found`}
+      >
         {objects.length === 0 ? (
           <div className="text-neutral-500">No objects.</div>
         ) : (
           <div className="flex flex-col gap-3">
             {objects.map(o => (
               <div key={o.name} className="rounded border border-white/5 bg-black/20 p-3">
-                <div className="mb-2 font-semibold text-neutral-100">
+                <div className="mb-2 flex items-center gap-2 font-semibold text-neutral-100">
+                  <BlenderIcon type="object" />
+                  <BlenderIcon type={iconForObject(o.type)} size={14} />
                   {o.name}{' '}
                   <span className="text-[11px] font-normal text-neutral-500">({OB_TYPE_NAMES[o.type] ?? o.type})</span>
                 </div>
@@ -398,14 +474,24 @@ const ApiView = ({ blend }: Props) => {
         )}
       </Section>
 
-      <Section title="Armatures" subtitle={`${armatures.length} found`}>
+      <Section
+        title={
+          <>
+            <BlenderIcon type="armature" /> Armatures
+          </>
+        }
+        subtitle={`${armatures.length} found`}
+      >
         {armatures.length === 0 ? (
           <div className="text-neutral-500">No armatures.</div>
         ) : (
           <div className="flex flex-col gap-3">
             {armatures.map(a => (
               <div key={a.name} className="rounded border border-white/5 bg-black/20 p-3">
-                <div className="mb-2 font-semibold text-neutral-100">{a.name}</div>
+                <div className="mb-2 flex items-center gap-2 font-semibold text-neutral-100">
+                  <BlenderIcon type="armature" />
+                  {a.name}
+                </div>
                 <div className="text-[11px]">{renderBoneTree(a.bones)}</div>
                 {hasProps(a.customProperties) && (
                   <div className="mt-3">
