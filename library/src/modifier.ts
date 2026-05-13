@@ -259,32 +259,34 @@ const triangulateFaces = (offsets: Uint32Array, cornerVerts: Uint32Array): Uint3
 const computeFaceNormals = (vertices: Float32Array, offsets: Uint32Array, cornerVerts: Uint32Array): Float32Array => {
   const fCount = offsets.length - 1
   const out = new Float32Array(fCount * 3)
+  // Newell's method: accumulates signed cross-products across every edge of the
+  // polygon. A single first-three-vertex cross product collapses to ~0 whenever
+  // those three vertices are nearly collinear (common in mirrored n-gons), and
+  // then normalizing amplifies float noise into a wrong direction.
   for (let f = 0; f < fCount; f++) {
     const start = offsets[f] ?? 0
     const size = (offsets[f + 1] ?? 0) - start
     if (size < 3) continue
-    const a = (cornerVerts[start] ?? 0) * 3
-    const b = (cornerVerts[start + 1] ?? 0) * 3
-    const c = (cornerVerts[start + 2] ?? 0) * 3
-    const ax = vertices[a] ?? 0,
-      ay = vertices[a + 1] ?? 0,
-      az = vertices[a + 2] ?? 0
-    const bx = (vertices[b] ?? 0) - ax
-    const by = (vertices[b + 1] ?? 0) - ay
-    const bz = (vertices[b + 2] ?? 0) - az
-    const cx = (vertices[c] ?? 0) - ax
-    const cy = (vertices[c + 1] ?? 0) - ay
-    const cz = (vertices[c + 2] ?? 0) - az
-    let nx = by * cz - bz * cy
-    let ny = bz * cx - bx * cz
-    let nz = bx * cy - by * cx
+    let nx = 0,
+      ny = 0,
+      nz = 0
+    for (let k = 0; k < size; k++) {
+      const i = (cornerVerts[start + k] ?? 0) * 3
+      const j = (cornerVerts[start + ((k + 1) % size)] ?? 0) * 3
+      const ix = vertices[i] ?? 0,
+        iy = vertices[i + 1] ?? 0,
+        iz = vertices[i + 2] ?? 0
+      const jx = vertices[j] ?? 0,
+        jy = vertices[j + 1] ?? 0,
+        jz = vertices[j + 2] ?? 0
+      nx += (iy - jy) * (iz + jz)
+      ny += (iz - jz) * (ix + jx)
+      nz += (ix - jx) * (iy + jy)
+    }
     const len = Math.hypot(nx, ny, nz) || 1
-    nx /= len
-    ny /= len
-    nz /= len
-    out[f * 3] = nx
-    out[f * 3 + 1] = ny
-    out[f * 3 + 2] = nz
+    out[f * 3] = nx / len
+    out[f * 3 + 1] = ny / len
+    out[f * 3 + 2] = nz / len
   }
   return out
 }
