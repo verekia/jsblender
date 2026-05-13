@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "unicorn", "import"],
+  "plugins": ["react", "react-perf", "typescript", "unicorn", "import", "jsx-a11y"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn",
@@ -26,8 +26,25 @@
       }
     ],
     "typescript/no-non-null-assertion": "warn",
+    "react/no-array-index-key": "warn",
+    "react/react-in-jsx-scope": "off",
+    "react/jsx-no-target-blank": "off",
+    "react/no-unescaped-entities": "off",
+    "react/no-unknown-property": "off",
+    "react-hooks/exhaustive-deps": "warn",
+    "jsx-a11y/no-static-element-interactions": "off",
+    "jsx-a11y/click-events-have-key-events": "off",
+    "jsx-a11y/no-autofocus": "off",
+    "jsx-a11y/label-has-associated-control": "off",
+    "jsx-a11y/aria-role": "off",
     "unicorn/no-useless-spread": "warn",
+    "unicorn/no-array-sort": "warn",
     "unicorn/consistent-function-scoping": "warn"
   },
-  "ignorePatterns": ["node_modules", "dist"]
+  "settings": {
+    "react": {
+      "version": "19.0"
+    }
+  },
+  "ignorePatterns": ["node_modules", "dist", "out", ".next", "**/next-env.d.ts"]
 }

@@ -1,39 +1,30 @@
 {
-  "name": "jsblender",
+  "name": "jsblender-monorepo",
   "version": "0.0.0",
-  "description": "Modern, typesafe .blend file parser for Blender 5 and up.",
-  "license": "MIT",
-  "files": [
-    "dist"
+  "private": true,
+  "workspaces": [
+    "library",
+    "example"
   ],
   "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "format": "oxfmt .",
-    "format:check": "oxfmt --check .",
+    "dev": "bun run --parallel --filter '*' dev",
+    "build": "bun run --filter '*' build",
+    "start": "bun run --filter '*' start",
+    "typecheck": "tsc -b --noEmit",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
-    "typecheck": "tsc --noEmit",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
     "test": "bun test",
     "warden": "warden",
-    "all": "bun run format:check && bun run lint && bun run typecheck && bun run warden && bun run test"
-  },
-  "dependencies": {
-    "fzstd": "0.1.1"
+    "all": "bun run format:check && bun run lint && bun run typecheck && bun run warden && bun run test",
+    "pub": "bun run --filter 'jsblender' build && npm publish --workspace library"
   },
   "devDependencies": {
-    "@types/bun": "1.3.8",
     "@verekia/warden": "0.0.3",
     "oxfmt": "0.48.0",
     "oxlint": "1.63.0",
-    "tsup": "8.5.1",
     "typescript": "5.9.3"
   }
 }

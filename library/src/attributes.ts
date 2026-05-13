@@ -1,6 +1,5 @@
-import type { FieldLayout, SDNAStructLayout } from './types.ts'
-
 import type { StructReader } from './reader.ts'
+import type { FieldLayout, SDNAStructLayout } from './types.ts'
 
 /**
  * `bke::AttrType` values used by Blender 5.x AttributeStorage. This enum was

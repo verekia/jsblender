@@ -19,10 +19,14 @@ const hasMagic = (buf: Uint8Array, magic: number[]): boolean => {
 export const decompressBlend = (buf: Uint8Array): Uint8Array => {
   if (hasMagic(buf, ZSTD_MAGIC)) return zstdDecompress(buf)
   if (hasMagic(buf, GZIP_MAGIC)) {
-    // Use the runtime's gunzip if available. Bun and modern Node both expose it.
+    // Bun (and modern Node) expose a synchronous gunzip. Browsers do not — the
+    // platform's DecompressionStream is async and would break this sync API.
+    // Blender 3.0+ writes zstd by default, so gzip is mostly legacy.
     const g = globalThis as { Bun?: { gunzipSync: (b: Uint8Array) => Uint8Array } }
     if (g.Bun?.gunzipSync) return g.Bun.gunzipSync(buf)
-    throw new Error('gzip-compressed .blend files require Bun (or a polyfill) at runtime')
+    throw new Error(
+      'gzip-compressed .blend files are not supported in this runtime; re-save the file with Blender 3+ (zstd) or decompress it first',
+    )
   }
   if (buf[0] === BLENDER_MAGIC_FIRST) return buf
   throw new Error('Not a .blend file: unrecognised magic bytes')
