@@ -76,9 +76,10 @@ const renderCollectionTree = (c: Collection, depth = 0): React.ReactNode => (
 
 interface Props {
   blend: BlendFileData
+  showSvg: boolean
 }
 
-const ApiView = ({ blend }: Props) => {
+const ApiView = ({ blend, showSvg }: Props) => {
   const meshes = useMemo(() => extractMeshes(blend), [blend])
   const materials = useMemo(() => extractMaterials(blend), [blend])
   const objects = useMemo(() => extractObjects(blend), [blend])
@@ -90,13 +91,15 @@ const ApiView = ({ blend }: Props) => {
 
   return (
     <div className="flex flex-col gap-3">
-      <Section
-        title={<span className="text-emerald-200">SVG render</span>}
-        subtitle="example consumer of the jsblender API"
-        defaultOpen={true}
-      >
-        <SvgRenderer blend={blend} />
-      </Section>
+      {showSvg && (
+        <Section
+          title={<span className="text-emerald-200">SVG render</span>}
+          subtitle="example consumer of the jsblender API"
+          defaultOpen={true}
+        >
+          <SvgRenderer blend={blend} />
+        </Section>
+      )}
 
       <Section
         title={

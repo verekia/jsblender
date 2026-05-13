@@ -24,6 +24,7 @@ const IndexPage = () => {
   const [loaded, setLoaded] = useState<LoadedFile | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showSvg, setShowSvg] = useState(false)
 
   const loadBuffer = useCallback((name: string, size: number, bytes: Uint8Array) => {
     try {
@@ -88,15 +89,26 @@ const IndexPage = () => {
             data exposed by the jsblender API.
           </p>
         </div>
-        <div className="text-right text-xs text-neutral-400">
-          {loaded ? (
-            <>
-              <div className="font-mono text-neutral-200">{loaded.name}</div>
-              <div>{(loaded.size / 1024).toFixed(1)} KB on disk</div>
-            </>
-          ) : (
-            <span>no file loaded</span>
+        <div className="flex items-center gap-3">
+          {loaded && (
+            <button
+              type="button"
+              onClick={() => setShowSvg(s => !s)}
+              className="cursor-pointer rounded border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-neutral-200 transition-colors hover:bg-white/[0.08]"
+            >
+              {showSvg ? 'Hide SVG render' : 'Show SVG render'}
+            </button>
           )}
+          <div className="text-right text-xs text-neutral-400">
+            {loaded ? (
+              <>
+                <div className="font-mono text-neutral-200">{loaded.name}</div>
+                <div>{(loaded.size / 1024).toFixed(1)} KB on disk</div>
+              </>
+            ) : (
+              <span>no file loaded</span>
+            )}
+          </div>
         </div>
       </header>
 
@@ -108,7 +120,7 @@ const IndexPage = () => {
 
       {loading && !loaded && <div className="text-sm text-neutral-400">Parsing...</div>}
 
-      {loaded && <ApiView blend={loaded.blend} />}
+      {loaded && <ApiView blend={loaded.blend} showSvg={showSvg} />}
 
       <DropZone onFileDrop={onFileDrop} onDemoLoad={onDemoLoad} hasFile={!!loaded} />
     </main>

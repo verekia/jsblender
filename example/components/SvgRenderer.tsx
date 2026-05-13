@@ -9,9 +9,9 @@ interface SvgRendererProps {
 }
 
 const SvgRenderer = ({ blend }: SvgRendererProps) => {
-  const [shading, setShading] = useState<'lambert' | 'flat'>('lambert')
-  const [creaseDeg, setCreaseDeg] = useState(20)
-  const [strokeWidth, setStrokeWidth] = useState(2)
+  const [shading, setShading] = useState<'lambert' | 'flat'>('flat')
+  const [creaseDeg, setCreaseDeg] = useState(180)
+  const [strokeWidth, setStrokeWidth] = useState(1)
   const [noOutlines, setNoOutlines] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
