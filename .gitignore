@@ -6,5 +6,6 @@ out/
 *.log
 *.tsbuildinfo
 *.blend1
+next-env.d.ts
 
 library/README.md
