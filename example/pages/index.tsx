@@ -5,12 +5,10 @@ import type { BlendFileData } from 'jsblender'
 
 import ApiView from '../components/ApiView'
 import DropZone from '../components/DropZone'
-import RawView from '../components/RawView'
 
 interface LoadedFile {
   name: string
   size: number
-  raw: Uint8Array
   blend: BlendFileData
 }
 
@@ -30,7 +28,7 @@ const IndexPage = () => {
   const loadBuffer = useCallback((name: string, size: number, bytes: Uint8Array) => {
     try {
       const blend = parseBlend(bytes)
-      setLoaded({ name, size, raw: blend.reader.buf, blend })
+      setLoaded({ name, size, blend })
       setError(null)
     } catch (err) {
       setError((err as Error).message)
@@ -73,8 +71,8 @@ const IndexPage = () => {
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-white">jsblender</h1>
           <p className="text-xs text-neutral-400">
-            Drop a <code className="rounded bg-white/5 px-1.5 py-0.5">.blend</code> file (Blender 5+) to inspect its raw
-            structure and the data exposed by the API.
+            Drop a <code className="rounded bg-white/5 px-1.5 py-0.5">.blend</code> file (Blender 5+) to inspect the
+            data exposed by the jsblender API.
           </p>
         </div>
         <div className="text-right text-xs text-neutral-400">
@@ -97,18 +95,7 @@ const IndexPage = () => {
 
       {loading && !loaded && <div className="text-sm text-neutral-400">Parsing...</div>}
 
-      {loaded && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div>
-            <h2 className="mb-3 text-sm font-semibold tracking-wider text-neutral-400 uppercase">Raw</h2>
-            <RawView raw={loaded.raw} blend={loaded.blend} />
-          </div>
-          <div>
-            <h2 className="mb-3 text-sm font-semibold tracking-wider text-neutral-400 uppercase">API</h2>
-            <ApiView blend={loaded.blend} />
-          </div>
-        </div>
-      )}
+      {loaded && <ApiView blend={loaded.blend} />}
 
       <DropZone onFileDrop={onFileDrop} onDemoLoad={onDemoLoad} hasFile={!!loaded} />
     </main>
