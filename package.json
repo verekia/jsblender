@@ -22,9 +22,9 @@
     "pub": "bun run --filter 'jsblender' build && npm publish --workspace library"
   },
   "devDependencies": {
-    "@verekia/warden": "0.0.3",
+    "@verekia/warden": "0.0.4",
     "oxfmt": "0.48.0",
     "oxlint": "1.63.0",
-    "typescript": "5.9.3"
+    "typescript": "6.0.3"
   }
 }

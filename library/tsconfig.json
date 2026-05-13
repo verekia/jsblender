@@ -15,7 +15,9 @@
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "types": ["bun"]
+    "types": ["bun"],
+    // tsup uses baseUrl
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src/**/*.ts"]
 }
