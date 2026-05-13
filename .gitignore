@@ -5,3 +5,5 @@ out/
 .DS_Store
 *.log
 *.tsbuildinfo
+
+library/README.md
