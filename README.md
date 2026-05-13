@@ -2,8 +2,6 @@
 
 Modern, typesafe `.blend` file parser for Blender 5 and up. Works in Node, Bun, and the browser.
 
-The reference parser ([`acweathersby/js.blend`](https://github.com/acweathersby/js.blend)) was last updated in 2016 and predates Blender's `AttributeStorage` mesh format, zstd compression, and the 32-byte block headers introduced with Blender's large-file support. `jsblender` is a from-scratch reader that targets the **current** file format.
-
 ⚠️ Heavily vibe-coded against a single test file. The code is barely reviewed, will probably crash on edge-case `.blend` files, and the surface area exposed only covers what the author needed. Not recommended for anything important.
 
 ## Status
