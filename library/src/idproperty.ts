@@ -72,7 +72,12 @@ const decodeArray = (reader: StructReader, propOffset: number, anchor: number): 
   }
 }
 
-const decodeGroup = (reader: StructReader, propOffset: number, anchor: number): Record<string, IDPropertyValue> => {
+const walkGroupChildren = (
+  reader: StructReader,
+  propOffset: number,
+  anchor: number,
+  visit: (name: string, childOffset: number, childAnchor: number) => void,
+): void => {
   const layout = reader.layoutOf('IDProperty')
   const fData = reader.fieldOf(layout, 'data')
   const fName = reader.fieldOf(layout, 'name')
@@ -80,11 +85,7 @@ const decodeGroup = (reader: StructReader, propOffset: number, anchor: number): 
   const dataLayout = reader.layoutOf('IDPropertyData')
   const fGroup = reader.fieldOf(dataLayout, 'group')
 
-  const groupHead = propOffset + fData.offset + fGroup.offset
-  const firstPtr = reader.readPointer(groupHead)
-
-  const out: Record<string, IDPropertyValue> = {}
-  let cursor = firstPtr
+  let cursor = reader.readPointer(propOffset + fData.offset + fGroup.offset)
   let currentAnchor = anchor
   let safety = 0
   while (cursor !== 0n) {
@@ -93,10 +94,17 @@ const decodeGroup = (reader: StructReader, propOffset: number, anchor: number): 
     if (!block) break
     const childOffset = Number(cursor - block.oldPtr) + block.dataOffset
     const name = reader.readCString(childOffset + fName.offset, 64)
-    out[name] = decodeIDProperty(reader, childOffset, block.dataOffset)
+    visit(name, childOffset, block.dataOffset)
     cursor = reader.readPointer(childOffset + fNext.offset)
     currentAnchor = block.dataOffset
   }
+}
+
+const decodeGroup = (reader: StructReader, propOffset: number, anchor: number): Record<string, IDPropertyValue> => {
+  const out: Record<string, IDPropertyValue> = {}
+  walkGroupChildren(reader, propOffset, anchor, (name, childOffset, childAnchor) => {
+    out[name] = decodeIDProperty(reader, childOffset, childAnchor)
+  })
   return out
 }
 
@@ -162,44 +170,17 @@ const decodeIDProperty = (reader: StructReader, propOffset: number, anchor: numb
   }
 }
 
-/**
- * Reads the same linked list as `decodeGroup` but also returns the
- * underlying `IDP_TYPE` for each top-level key. The shape mirrors `customProperties`
- * so callers can ask "was this stored as INT or as FLOAT?" — a distinction lost
- * once both have been collapsed onto a JS `number`.
- */
 const decodeGroupTypes = (
   reader: StructReader,
   propOffset: number,
   anchor: number,
 ): Record<string, IDPropertyTypeName> => {
-  const layout = reader.layoutOf('IDProperty')
-  const fType = reader.fieldOf(layout, 'type')
-  const fData = reader.fieldOf(layout, 'data')
-  const fName = reader.fieldOf(layout, 'name')
-  const fNext = reader.fieldOf(layout, 'next')
-  const dataLayout = reader.layoutOf('IDPropertyData')
-  const fGroup = reader.fieldOf(dataLayout, 'group')
-
-  const groupHead = propOffset + fData.offset + fGroup.offset
-  const firstPtr = reader.readPointer(groupHead)
-
+  const fType = reader.fieldOf(reader.layoutOf('IDProperty'), 'type')
   const out: Record<string, IDPropertyTypeName> = {}
-  let cursor = firstPtr
-  let currentAnchor = anchor
-  let safety = 0
-  while (cursor !== 0n) {
-    if (++safety > 10_000) throw new Error('Runaway IDProperty group walk')
-    const block = reader.blockAt(cursor, currentAnchor)
-    if (!block) break
-    const childOffset = Number(cursor - block.oldPtr) + block.dataOffset
-    const name = reader.readCString(childOffset + fName.offset, 64)
-    const t = reader.readUint8(childOffset + fType.offset)
-    const typeName = TYPE_NAME_BY_VALUE[t]
+  walkGroupChildren(reader, propOffset, anchor, (name, childOffset) => {
+    const typeName = TYPE_NAME_BY_VALUE[reader.readUint8(childOffset + fType.offset)]
     if (typeName !== undefined) out[name] = typeName
-    cursor = reader.readPointer(childOffset + fNext.offset)
-    currentAnchor = block.dataOffset
-  }
+  })
   return out
 }
 
