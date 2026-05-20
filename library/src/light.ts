@@ -1,6 +1,6 @@
-import { readCustomProperties } from './idproperty.ts'
+import { readCustomProperties, readCustomPropertyTypes } from './idproperty.ts'
 
-import type { IDPropertyValue } from './idproperty.ts'
+import type { IDPropertyTypeName, IDPropertyValue } from './idproperty.ts'
 import type { BlendFileData } from './parser.ts'
 
 export const LIGHT_TYPE = {
@@ -51,6 +51,8 @@ export interface Light {
   areaSize?: [number] | [number, number]
   useNodes: boolean
   customProperties: Record<string, IDPropertyValue>
+  /** Original `IDP_TYPE` for each top-level custom property (parallel to `customProperties`). */
+  customPropertyTypes: Record<string, IDPropertyTypeName>
 }
 
 export const extractLights = (data: BlendFileData): Light[] => {
@@ -98,6 +100,7 @@ export const extractLights = (data: BlendFileData): Light[] => {
       radius,
       useNodes,
       customProperties: readCustomProperties(reader, base),
+      customPropertyTypes: readCustomPropertyTypes(reader, base),
     }
 
     if (type === 'spot') {

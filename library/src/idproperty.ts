@@ -13,6 +13,15 @@ export const IDP_TYPE = {
   BOOLEAN: 10,
 } as const
 
+/** String form of the IDProperty type, mirroring the `IDP_TYPE` keys. */
+export type IDPropertyTypeName = keyof typeof IDP_TYPE
+
+const TYPE_NAME_BY_VALUE: Readonly<Record<number, IDPropertyTypeName>> = (() => {
+  const out: Record<number, IDPropertyTypeName> = {}
+  for (const [name, value] of Object.entries(IDP_TYPE)) out[value] = name as IDPropertyTypeName
+  return out
+})()
+
 export type IDPropertyValue =
   | string
   | number
@@ -154,6 +163,47 @@ const decodeIDProperty = (reader: StructReader, propOffset: number, anchor: numb
 }
 
 /**
+ * Reads the same linked list as `decodeGroup` but also returns the
+ * underlying `IDP_TYPE` for each top-level key. The shape mirrors `customProperties`
+ * so callers can ask "was this stored as INT or as FLOAT?" — a distinction lost
+ * once both have been collapsed onto a JS `number`.
+ */
+const decodeGroupTypes = (
+  reader: StructReader,
+  propOffset: number,
+  anchor: number,
+): Record<string, IDPropertyTypeName> => {
+  const layout = reader.layoutOf('IDProperty')
+  const fType = reader.fieldOf(layout, 'type')
+  const fData = reader.fieldOf(layout, 'data')
+  const fName = reader.fieldOf(layout, 'name')
+  const fNext = reader.fieldOf(layout, 'next')
+  const dataLayout = reader.layoutOf('IDPropertyData')
+  const fGroup = reader.fieldOf(dataLayout, 'group')
+
+  const groupHead = propOffset + fData.offset + fGroup.offset
+  const firstPtr = reader.readPointer(groupHead)
+
+  const out: Record<string, IDPropertyTypeName> = {}
+  let cursor = firstPtr
+  let currentAnchor = anchor
+  let safety = 0
+  while (cursor !== 0n) {
+    if (++safety > 10_000) throw new Error('Runaway IDProperty group walk')
+    const block = reader.blockAt(cursor, currentAnchor)
+    if (!block) break
+    const childOffset = Number(cursor - block.oldPtr) + block.dataOffset
+    const name = reader.readCString(childOffset + fName.offset, 64)
+    const t = reader.readUint8(childOffset + fType.offset)
+    const typeName = TYPE_NAME_BY_VALUE[t]
+    if (typeName !== undefined) out[name] = typeName
+    cursor = reader.readPointer(childOffset + fNext.offset)
+    currentAnchor = block.dataOffset
+  }
+  return out
+}
+
+/**
  * Reads the `ID.properties` group attached to an ID datablock and returns its
  * children as a plain object. Returns `{}` when the ID has no custom properties.
  */
@@ -165,6 +215,22 @@ export const readCustomProperties = (reader: StructReader, idOffset: number): Re
   const block = reader.blockAt(ptr, idOffset)
   if (!block) return {}
   return decodeGroup(reader, block.dataOffset, block.dataOffset)
+}
+
+/**
+ * Companion to `readCustomProperties`: for each top-level key, returns the
+ * original `IDP_TYPE` (as a string name). Lets callers distinguish e.g. an
+ * INT `5` from a FLOAT `5.0` — both collapse to the same JS number in the
+ * value map. Nested groups appear as `'GROUP'` without their inner types.
+ */
+export const readCustomPropertyTypes = (reader: StructReader, idOffset: number): Record<string, IDPropertyTypeName> => {
+  const idLayout = reader.layoutOf('ID')
+  const fProps = reader.fieldOf(idLayout, 'properties')
+  const ptr = reader.readPointer(idOffset + fProps.offset)
+  if (ptr === 0n) return {}
+  const block = reader.blockAt(ptr, idOffset)
+  if (!block) return {}
+  return decodeGroupTypes(reader, block.dataOffset, block.dataOffset)
 }
 
 /**

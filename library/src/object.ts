@@ -1,7 +1,7 @@
-import { readCustomProperties } from './idproperty.ts'
+import { readCustomProperties, readCustomPropertyTypes } from './idproperty.ts'
 import { composeObjectMatrix, mat4Identity, mat4Multiply } from './transform.ts'
 
-import type { IDPropertyValue } from './idproperty.ts'
+import type { IDPropertyTypeName, IDPropertyValue } from './idproperty.ts'
 import type { BlendFileData } from './parser.ts'
 import type { Mat4, ObjectTransformInputs, Vec4 } from './transform.ts'
 import type { BlendBlock } from './types.ts'
@@ -27,6 +27,8 @@ export interface SceneObject {
   /** Parent object name, when set. */
   parentName?: string
   customProperties: Record<string, IDPropertyValue>
+  /** Original `IDP_TYPE` for each top-level custom property (parallel to `customProperties`). */
+  customPropertyTypes: Record<string, IDPropertyTypeName>
 }
 
 export const OB_TYPE = {
@@ -191,6 +193,7 @@ export const extractObjects = (data: BlendFileData): SceneObject[] => {
       dataName,
       parentName,
       customProperties: readCustomProperties(reader, base),
+      customPropertyTypes: readCustomPropertyTypes(reader, base),
     })
   }
   return out

@@ -110,7 +110,7 @@ interface DeformVertex {
 }
 ```
 
-Every returned datablock also carries a `customProperties: Record<string, IDPropertyValue>` field — see [Custom properties](#custom-properties-idproperty) below.
+Every returned datablock also carries `customProperties: Record<string, IDPropertyValue>` and a sibling `customPropertyTypes: Record<string, IDPropertyTypeName>` — see [Custom properties](#custom-properties-idproperty) below.
 
 ### `extractMaterials(blend): Material[]`
 
@@ -332,6 +332,30 @@ cube?.customProperties
 //   myDataBlock: { __idRef: null },
 // }
 ```
+
+INT and FLOAT collapse onto the same JS `number`, which matters when you want
+to serialise back to a format that distinguishes them (e.g. emitting an INT
+`5` vs a FLOAT `5.0`). Each datablock also carries a sibling
+`customPropertyTypes: Record<string, IDPropertyTypeName>` keyed by the same
+names, holding the original `IDP_TYPE`:
+
+```ts
+cube?.customPropertyTypes
+// {
+//   myFloat: 'DOUBLE',
+//   myInteger: 'INT',
+//   myBoolean: 'BOOLEAN',
+//   myString: 'STRING',
+//   myFloatArray: 'ARRAY',
+//   myDataBlock: 'ID',
+// }
+```
+
+`IDPropertyTypeName` mirrors the keys of the exported `IDP_TYPE` constant —
+`'INT' | 'FLOAT' | 'DOUBLE' | 'BOOLEAN' | 'STRING' | 'ARRAY' | 'GROUP' | 'ID' | 'IDPARRAY'`.
+Nested groups show up as `'GROUP'`; their inner types aren't recursed into.
+For one-off lookups you can also call `readCustomPropertyTypes(reader, idOffset)`
+directly.
 
 ## Low-level access
 
