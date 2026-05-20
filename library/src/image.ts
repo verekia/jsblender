@@ -1,6 +1,6 @@
-import { readCustomProperties } from './idproperty.ts'
+import { readCustomProperties, readCustomPropertyTypes } from './idproperty.ts'
 
-import type { IDPropertyValue } from './idproperty.ts'
+import type { IDPropertyTypeName, IDPropertyValue } from './idproperty.ts'
 import type { BlendFileData } from './parser.ts'
 
 export const IMAGE_SOURCE = {
@@ -34,6 +34,8 @@ export interface Image {
   /** Raw bytes of the embedded file (when image data is packed into the blend). */
   packed?: Uint8Array
   customProperties: Record<string, IDPropertyValue>
+  /** Original `IDP_TYPE` for each top-level custom property (parallel to `customProperties`). */
+  customPropertyTypes: Record<string, IDPropertyTypeName>
 }
 
 const readPackedFile = (data: BlendFileData, packedFilePtr: bigint, anchor: number): Uint8Array | undefined => {
@@ -80,6 +82,7 @@ export const extractImages = (data: BlendFileData): Image[] => {
       generatedHeight: reader.readInt32(base + fGenY.offset),
       packed,
       customProperties: readCustomProperties(reader, base),
+      customPropertyTypes: readCustomPropertyTypes(reader, base),
     })
   }
   return out

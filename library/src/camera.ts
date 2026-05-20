@@ -1,6 +1,6 @@
-import { readCustomProperties } from './idproperty.ts'
+import { readCustomProperties, readCustomPropertyTypes } from './idproperty.ts'
 
-import type { IDPropertyValue } from './idproperty.ts'
+import type { IDPropertyTypeName, IDPropertyValue } from './idproperty.ts'
 import type { BlendFileData } from './parser.ts'
 
 export const CAMERA_TYPE = {
@@ -45,6 +45,8 @@ export interface Camera {
   shiftX: number
   shiftY: number
   customProperties: Record<string, IDPropertyValue>
+  /** Original `IDP_TYPE` for each top-level custom property (parallel to `customProperties`). */
+  customPropertyTypes: Record<string, IDPropertyTypeName>
 }
 
 export const extractCameras = (data: BlendFileData): Camera[] => {
@@ -85,6 +87,7 @@ export const extractCameras = (data: BlendFileData): Camera[] => {
       shiftX: reader.readFloat32(base + fShiftX.offset),
       shiftY: reader.readFloat32(base + fShiftY.offset),
       customProperties: readCustomProperties(reader, base),
+      customPropertyTypes: readCustomPropertyTypes(reader, base),
     })
   }
   return out

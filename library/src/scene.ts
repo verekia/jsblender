@@ -1,6 +1,6 @@
-import { readCustomProperties } from './idproperty.ts'
+import { readCustomProperties, readCustomPropertyTypes } from './idproperty.ts'
 
-import type { IDPropertyValue } from './idproperty.ts'
+import type { IDPropertyTypeName, IDPropertyValue } from './idproperty.ts'
 import type { BlendFileData } from './parser.ts'
 
 export interface Collection {
@@ -10,6 +10,8 @@ export interface Collection {
   /** Sub-collections (recursive). */
   children: Collection[]
   customProperties: Record<string, IDPropertyValue>
+  /** Original `IDP_TYPE` for each top-level custom property (parallel to `customProperties`). */
+  customPropertyTypes: Record<string, IDPropertyTypeName>
 }
 
 export interface Scene {
@@ -28,6 +30,8 @@ export interface Scene {
   /** Master scene collection — the root of the scene's collection tree. */
   rootCollection?: Collection
   customProperties: Record<string, IDPropertyValue>
+  /** Original `IDP_TYPE` for each top-level custom property (parallel to `customProperties`). */
+  customPropertyTypes: Record<string, IDPropertyTypeName>
 }
 
 const idNameWithoutPrefix = (raw: string): string => (raw.length >= 2 ? raw.slice(2) : raw)
@@ -99,7 +103,13 @@ const readCollectionTree = (
     walkAnchor = ccBlock.dataOffset
   }
 
-  return { name, objectNames, children, customProperties: readCustomProperties(reader, base) }
+  return {
+    name,
+    objectNames,
+    children,
+    customProperties: readCustomProperties(reader, base),
+    customPropertyTypes: readCustomPropertyTypes(reader, base),
+  }
 }
 
 export const extractScenes = (data: BlendFileData): Scene[] => {
@@ -154,6 +164,7 @@ export const extractScenes = (data: BlendFileData): Scene[] => {
       resolutionPercentage: reader.readInt16(renderBase + fSize.offset),
       rootCollection,
       customProperties: readCustomProperties(reader, base),
+      customPropertyTypes: readCustomPropertyTypes(reader, base),
     })
   }
   return out

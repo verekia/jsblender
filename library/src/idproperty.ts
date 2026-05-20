@@ -13,6 +13,15 @@ export const IDP_TYPE = {
   BOOLEAN: 10,
 } as const
 
+/** String form of the IDProperty type, mirroring the `IDP_TYPE` keys. */
+export type IDPropertyTypeName = keyof typeof IDP_TYPE
+
+const TYPE_NAME_BY_VALUE: Readonly<Record<number, IDPropertyTypeName>> = (() => {
+  const out: Record<number, IDPropertyTypeName> = {}
+  for (const [name, value] of Object.entries(IDP_TYPE)) out[value] = name as IDPropertyTypeName
+  return out
+})()
+
 export type IDPropertyValue =
   | string
   | number
@@ -63,7 +72,12 @@ const decodeArray = (reader: StructReader, propOffset: number, anchor: number): 
   }
 }
 
-const decodeGroup = (reader: StructReader, propOffset: number, anchor: number): Record<string, IDPropertyValue> => {
+const walkGroupChildren = (
+  reader: StructReader,
+  propOffset: number,
+  anchor: number,
+  visit: (name: string, childOffset: number, childAnchor: number) => void,
+): void => {
   const layout = reader.layoutOf('IDProperty')
   const fData = reader.fieldOf(layout, 'data')
   const fName = reader.fieldOf(layout, 'name')
@@ -71,11 +85,7 @@ const decodeGroup = (reader: StructReader, propOffset: number, anchor: number): 
   const dataLayout = reader.layoutOf('IDPropertyData')
   const fGroup = reader.fieldOf(dataLayout, 'group')
 
-  const groupHead = propOffset + fData.offset + fGroup.offset
-  const firstPtr = reader.readPointer(groupHead)
-
-  const out: Record<string, IDPropertyValue> = {}
-  let cursor = firstPtr
+  let cursor = reader.readPointer(propOffset + fData.offset + fGroup.offset)
   let currentAnchor = anchor
   let safety = 0
   while (cursor !== 0n) {
@@ -84,10 +94,17 @@ const decodeGroup = (reader: StructReader, propOffset: number, anchor: number): 
     if (!block) break
     const childOffset = Number(cursor - block.oldPtr) + block.dataOffset
     const name = reader.readCString(childOffset + fName.offset, 64)
-    out[name] = decodeIDProperty(reader, childOffset, block.dataOffset)
+    visit(name, childOffset, block.dataOffset)
     cursor = reader.readPointer(childOffset + fNext.offset)
     currentAnchor = block.dataOffset
   }
+}
+
+const decodeGroup = (reader: StructReader, propOffset: number, anchor: number): Record<string, IDPropertyValue> => {
+  const out: Record<string, IDPropertyValue> = {}
+  walkGroupChildren(reader, propOffset, anchor, (name, childOffset, childAnchor) => {
+    out[name] = decodeIDProperty(reader, childOffset, childAnchor)
+  })
   return out
 }
 
@@ -153,6 +170,20 @@ const decodeIDProperty = (reader: StructReader, propOffset: number, anchor: numb
   }
 }
 
+const decodeGroupTypes = (
+  reader: StructReader,
+  propOffset: number,
+  anchor: number,
+): Record<string, IDPropertyTypeName> => {
+  const fType = reader.fieldOf(reader.layoutOf('IDProperty'), 'type')
+  const out: Record<string, IDPropertyTypeName> = {}
+  walkGroupChildren(reader, propOffset, anchor, (name, childOffset) => {
+    const typeName = TYPE_NAME_BY_VALUE[reader.readUint8(childOffset + fType.offset)]
+    if (typeName !== undefined) out[name] = typeName
+  })
+  return out
+}
+
 /**
  * Reads the `ID.properties` group attached to an ID datablock and returns its
  * children as a plain object. Returns `{}` when the ID has no custom properties.
@@ -165,6 +196,22 @@ export const readCustomProperties = (reader: StructReader, idOffset: number): Re
   const block = reader.blockAt(ptr, idOffset)
   if (!block) return {}
   return decodeGroup(reader, block.dataOffset, block.dataOffset)
+}
+
+/**
+ * Companion to `readCustomProperties`: for each top-level key, returns the
+ * original `IDP_TYPE` (as a string name). Lets callers distinguish e.g. an
+ * INT `5` from a FLOAT `5.0` — both collapse to the same JS number in the
+ * value map. Nested groups appear as `'GROUP'` without their inner types.
+ */
+export const readCustomPropertyTypes = (reader: StructReader, idOffset: number): Record<string, IDPropertyTypeName> => {
+  const idLayout = reader.layoutOf('ID')
+  const fProps = reader.fieldOf(idLayout, 'properties')
+  const ptr = reader.readPointer(idOffset + fProps.offset)
+  if (ptr === 0n) return {}
+  const block = reader.blockAt(ptr, idOffset)
+  if (!block) return {}
+  return decodeGroupTypes(reader, block.dataOffset, block.dataOffset)
 }
 
 /**

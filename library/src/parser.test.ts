@@ -204,6 +204,34 @@ describe('custom properties (IDProperty)', () => {
     expect(camera).toBeDefined()
     expect(camera?.customProperties).toEqual({})
   })
+
+  it('exposes the underlying IDP_TYPE for each custom property', () => {
+    const meshes = extractMeshes(blend)
+    const cube = meshes.find(m => m.name === 'Cube')
+    expect(cube).toBeDefined()
+    const types = cube?.customPropertyTypes
+    expect(types).toBeDefined()
+    if (!types) return
+
+    // INT and FLOAT collapse to the same JS number — the type map is what
+    // tells callers which is which (and so whether to emit "5" or "5.0").
+    expect(types.myInteger).toBe('INT')
+    // `myFloat` was created via Python's `obj['myFloat'] = 1.0`, which stores it
+    // as DOUBLE — distinct from INT, which is what matters for callers.
+    expect(types.myFloat).toBe('DOUBLE')
+    expect(types.myBoolean).toBe('BOOLEAN')
+    expect(types.myString).toBe('STRING')
+    expect(types.myFloatArray).toBe('ARRAY')
+    expect(types.myIntegerArray).toBe('ARRAY')
+    expect(types.myBooleanArray).toBe('ARRAY')
+    expect(types.myDataBlock).toBe('ID')
+  })
+
+  it('returns {} customPropertyTypes for IDs without custom properties', () => {
+    const objects = extractObjects(blend)
+    const camera = objects.find(o => o.name === 'Camera')
+    expect(camera?.customPropertyTypes).toEqual({})
+  })
 })
 
 describe('modifiers (megaxe.blend)', () => {

@@ -1,7 +1,7 @@
-import { readCustomProperties } from './idproperty.ts'
+import { readCustomProperties, readCustomPropertyTypes } from './idproperty.ts'
 import { readMaterialShaderGraph } from './shader.ts'
 
-import type { IDPropertyValue } from './idproperty.ts'
+import type { IDPropertyTypeName, IDPropertyValue } from './idproperty.ts'
 import type { BlendFileData } from './parser.ts'
 import type { ShaderGraph } from './shader.ts'
 
@@ -16,6 +16,8 @@ export interface Material {
   /** Parsed shader graph, when the material has a node tree. */
   shader?: ShaderGraph
   customProperties: Record<string, IDPropertyValue>
+  /** Original `IDP_TYPE` for each top-level custom property (parallel to `customProperties`). */
+  customPropertyTypes: Record<string, IDPropertyTypeName>
 }
 
 export const extractMaterials = (data: BlendFileData): Material[] => {
@@ -65,6 +67,7 @@ export const extractMaterials = (data: BlendFileData): Material[] => {
       hasNodeTree,
       shader,
       customProperties: readCustomProperties(reader, base),
+      customPropertyTypes: readCustomPropertyTypes(reader, base),
     })
   }
   return out

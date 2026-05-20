@@ -1,6 +1,6 @@
-import { readCustomProperties } from './idproperty.ts'
+import { readCustomProperties, readCustomPropertyTypes } from './idproperty.ts'
 
-import type { IDPropertyValue } from './idproperty.ts'
+import type { IDPropertyTypeName, IDPropertyValue } from './idproperty.ts'
 import type { BlendFileData } from './parser.ts'
 import type { BlendBlock } from './types.ts'
 
@@ -23,6 +23,8 @@ export interface Armature {
   name: string
   bones: Bone[]
   customProperties: Record<string, IDPropertyValue>
+  /** Original `IDP_TYPE` for each top-level custom property (parallel to `customProperties`). */
+  customPropertyTypes: Record<string, IDPropertyTypeName>
 }
 
 const readListBase = (
@@ -99,7 +101,12 @@ export const extractArmatures = (data: BlendFileData): Armature[] => {
     const name = rawName.startsWith('AR') ? rawName.slice(2) : rawName
     const top = readListBase(data, base + fBonebase.offset, 'Bone', base)
     const bones = top.map(b => readBone(data, b.offset, b.block.dataOffset))
-    out.push({ name, bones, customProperties: readCustomProperties(reader, base) })
+    out.push({
+      name,
+      bones,
+      customProperties: readCustomProperties(reader, base),
+      customPropertyTypes: readCustomPropertyTypes(reader, base),
+    })
   }
   return out
 }

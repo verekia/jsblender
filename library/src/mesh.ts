@@ -6,10 +6,10 @@ import {
   readAttributeAsUint8,
   readAttributeStorage,
 } from './attributes.ts'
-import { readCustomProperties } from './idproperty.ts'
+import { readCustomProperties, readCustomPropertyTypes } from './idproperty.ts'
 
 import type { MeshAttributeRaw } from './attributes.ts'
-import type { IDPropertyValue } from './idproperty.ts'
+import type { IDPropertyTypeName, IDPropertyValue } from './idproperty.ts'
 import type { BlendFileData } from './parser.ts'
 import type { BlendBlock } from './types.ts'
 
@@ -62,6 +62,8 @@ export interface Mesh {
   dvert?: DeformVertex[]
   /** User-defined custom properties on this datablock. */
   customProperties: Record<string, IDPropertyValue>
+  /** Original `IDP_TYPE` for each top-level custom property (parallel to `customProperties`). */
+  customPropertyTypes: Record<string, IDPropertyTypeName>
 }
 
 const readListBaseStrings = (
@@ -343,6 +345,7 @@ export const extractMeshes = (data: BlendFileData): Mesh[] => {
       vertexGroupNames,
       dvert,
       customProperties: readCustomProperties(reader, base),
+      customPropertyTypes: readCustomPropertyTypes(reader, base),
     })
   }
   return meshes
