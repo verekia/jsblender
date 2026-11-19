@@ -274,7 +274,7 @@ const removeSpikes = (points: Pt[], tol = 0.01): Pt[] => {
     // includes A → A → … runs at the boundary between merged-and-not-merged
     // edges; without this pass the A→B→A spike detector misses spikes that
     // have a duplicate point at the apex.
-    for (let i = 0; i < result.length && result.length >= 2; ) {
+    for (let i = 0; i < result.length && result.length >= 2;) {
       const a = result[i]!
       const b = result[(i + 1) % result.length]!
       if (ptEq(a, b, tol)) {
@@ -287,7 +287,7 @@ const removeSpikes = (points: Pt[], tol = 0.01): Pt[] => {
     }
     // Pass 2: A → B → A spikes — the middle vertex encloses no area; drop it
     // and the duplicate of A.
-    for (let i = 0; i < result.length && result.length >= 3; ) {
+    for (let i = 0; i < result.length && result.length >= 3;) {
       const a = result[i]!
       const c = result[(i + 2) % result.length]!
       if (ptEq(a, c, tol)) {

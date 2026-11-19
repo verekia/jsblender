@@ -24,7 +24,6 @@ ESM-only. Node 18+, Bun, or any modern browser. The only runtime dependency is [
 ## Quick start
 
 ```ts
-import { readFileSync } from 'node:fs'
 import {
   parseBlend,
   extractScenes,
@@ -36,6 +35,8 @@ import {
   extractImages,
   extractArmatures,
 } from 'jsblender'
+
+import { readFileSync } from 'node:fs'
 
 const blend = parseBlend(readFileSync('scene.blend'))
 
